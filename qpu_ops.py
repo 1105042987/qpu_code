@@ -1,4 +1,5 @@
 import torch
+import qpu._ext as _ext
 
 def qpu_linear(input, weight, bias):
     """
@@ -13,8 +14,8 @@ def qpu_linear(input, weight, bias):
     r, i, j, k = quaternion_power_bias(r, i, j, k, weight, bias)
     r, i, j, k = QuaternionRemoveZeros.apply(r, i, j, k)
     r, i, j, k = quaternion_chained_prod(r, i, j, k, -1)
-    # We can also use the custom autograd function which significantly decrease GPU memory usage, but is slower.
-    # r, i, j, k = QuaternionChainedProdFunction.apply(r, i, j, k, -1)
+    # We can also use the CUDA version
+    # r, i, j, k = HMD_GPU.apply(torch.cat([r.unsqueeze(-1),i.unsqueeze(-1),j.unsqueeze(-1),k.unsqueeze(-1)],-1))
 
     return torch.cat([r, i, j, k], dim=-1)
 
@@ -38,6 +39,24 @@ class QuaternionRemoveZeros(torch.autograd.Function):
         gj[index] = 0
         gk[index] = 0
         return gr, gi, gj, gk
+
+
+class HMD_GPU(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, inputs):
+        ctx.batchShape = inputs.shape[:-3]
+        ctx.inSize = inputs.shape[-2]
+        ctx.outSize = inputs.shape[-3]
+        
+        mem = _ext.hamilton_product(inputs.view(-1,ctx.outSize,ctx.inSize,4))
+        ctx.save_for_backward(mem)
+        return mem[...,1,:].reshape(*ctx.batchShape,ctx.outSize*4)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        mem, = ctx.saved_tensors
+        lower = _ext.hamilton_product_grad(grad_output.view(-1,ctx.outSize,4),mem,ctx.inSize)
+        return lower.view(*ctx.batchShape,ctx.outSize,ctx.inSize,4)
 
 
 def quaternion_normalize(input, dim):

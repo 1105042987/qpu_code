@@ -28,6 +28,10 @@ We also use Jupyter Notebook and matplotlib for the synthetic data experiments.
 
 The code for the point cloud experiments in `pointcloud` is modified based on [Pointnet2_PyTorch](https://github.com/erikwijmans/Pointnet2_PyTorch). Please refer to the origin repository or `pointcloud/README.rst` for installation instructions.
 
+### CUDA setup
+
+Run commands `python setup.py build_ext --inplace` to setup. 
+
 ## Synthetic data experiments
 
 Synthetic data experiments are in `CubeEdge/experiments.ipynb`.
@@ -73,6 +77,8 @@ First enter the correct dataset path in `config.test.yaml`. Then use the followi
 ```shell
 python test.py <dir of model folder> <random rotate the input data ? True:1, Flase:0>
 ```
+
+
 
 ## Point cloud data experiments
 
